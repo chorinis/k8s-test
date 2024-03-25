@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: postgresql-and-liquibase
+spec:
+  containers:
+  - name: postgresql
+    image: postgres:latest
+    ports:
+    - containerPort: 5432
+    env:
+    - name: POSTGRES_DB
+      value: test
+    - name: POSTGRES_USER
+      value: postgress
+    - name: POSTGRES_PASSWORD
+      value: postgress
+  - name: liquibase
+    image: your-liquibase-image:latest
+    command: ["liquibase", "update"]
+  #   volumeMounts:
+  #   - name: liquibase-scripts
+  #     mountPath: /liquibase/changelog
+  # volumes:
+  # - name: liquibase-scripts
+  #   configMap:
+  #     name: liquibase-scripts-configmap
+  initContainers:
+  - name: build-container
+    image: docker:19.03.12
+    command: ["docker", "build", "-t", "your-liquibase-image:latest", "-f", "./Dockerfile", "./"]
+    volumeMounts:
+    - name: docker-socket
+      mountPath: /var/run/docker.sock
+    # - name: docker-config
+    #   mountPath: /root/.docker/
+  volumes:
+  - name: docker-socket
+    hostPath:
+      path: /var/run/docker.sock
+  # - name: docker-config
+  #   configMap:
+  #     name: docker-config
