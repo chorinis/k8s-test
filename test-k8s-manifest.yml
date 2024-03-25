@@ -4,7 +4,7 @@ metadata:
   name: postgresql-and-liquibase
 spec:
   containers:
-  - name: postgresql
+  - name: postgres
     image: postgres:latest
     ports:
     - containerPort: 5432
@@ -15,29 +15,44 @@ spec:
       value: postgress
     - name: POSTGRES_PASSWORD
       value: postgress
+  # initContainers:
   - name: liquibase
-    image: your-liquibase-image:latest
-    command: ["liquibase", "update"]
-  #   volumeMounts:
-  #   - name: liquibase-scripts
-  #     mountPath: /liquibase/changelog
-  # volumes:
-  # - name: liquibase-scripts
-  #   configMap:
-  #     name: liquibase-scripts-configmap
-  initContainers:
-  - name: build-container
-    image: docker:19.03.12
-    command: ["docker", "build", "-t", "your-liquibase-image:latest", "-f", "./Dockerfile", "./"]
+    image: liquibase/liquibase:latest
+    command: [
+      "liquibase", 
+      "update", 
+      "--changeLogFile=db-changelog.xml", 
+      "--url=jdbc:postgresql://localhost:5432/test?user=postgress&password=postgress",
+      "--log-level=FINE",
+    ]
+    env:
+    - name: LIQUIBASE_SEARCH_PATH
+      value: /liquibase/changelog
     volumeMounts:
-    - name: docker-socket
-      mountPath: /var/run/docker.sock
-    # - name: docker-config
-    #   mountPath: /root/.docker/
+    - name: liquibase-changelog-volume
+      mountPath: /liquibase/changelog
   volumes:
-  - name: docker-socket
-    hostPath:
-      path: /var/run/docker.sock
-  # - name: docker-config
-  #   configMap:
-  #     name: docker-config
+  - name: liquibase-changelog-volume
+    configMap:
+      name: liquibase-changelog
+
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: liquibase-changelog
+data:
+  db-changelog.xml: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                       xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.3.xsd">
+      <changeSet id="1" author="John Doe">
+        <sql>CREATE TABLE example (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(255) NOT NULL
+        );</sql>
+      </changeSet>
+    </databaseChangeLog>
